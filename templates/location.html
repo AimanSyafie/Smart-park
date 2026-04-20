@@ -5,18 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ area }} Parking</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
-    <!-- Leaflet -->
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        crossorigin=""
-    />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 </head>
 <body class="page-body">
     <header class="top-bar">
         <h1>{{ area }} Parking</h1>
-        <a href="{{ url_for('home') }}" class="back-btn">← Back</a>
+        <div class="top-bar-actions">
+            <a href="{{ url_for('admin') }}" class="back-btn alt-btn">Database & XML</a>
+            <a href="{{ url_for('home') }}" class="back-btn">← Back</a>
+        </div>
     </header>
 
     <section class="summary-cards">
@@ -40,25 +37,44 @@
         </div>
 
         <div class="info-panel">
-            <h2>How to Use</h2>
-            <p>Click any parking spot on the map.</p>
-            <p>
-                <span class="legend green-dot"></span> Green = Available
-            </p>
-            <p>
-                <span class="legend red-dot"></span> Red/X = Full
-            </p>
+            <h2>Structured Text Feature</h2>
+            <p>Click a parking spot on the map, then update its status.</p>
+            <p><span class="legend green-dot"></span> Green = Available</p>
+            <p><span class="legend red-dot"></span> Red / X = Full</p>
 
             <div class="note-box">
-                <h3>Structured Text Feature</h3>
-                <p>
-                    When a user updates a spot, the report is saved into the database as XML.
-                </p>
+                <h3>How it works</h3>
+                <p>When you submit an update, the system:</p>
+                <ul class="feature-list">
+                    <li>updates the spot in the database</li>
+                    <li>creates structured XML text</li>
+                    <li>saves the XML report into the database</li>
+                </ul>
+            </div>
+
+            <div class="xml-box">
+                <h3>Generated XML Preview</h3>
+                <pre id="xmlPreview">&lt;parking_report&gt;
+  &lt;area&gt;{{ area }}&lt;/area&gt;
+  &lt;spot_code&gt;Select a spot from map&lt;/spot_code&gt;
+  &lt;status&gt;Choose status&lt;/status&gt;
+&lt;/parking_report&gt;</pre>
+            </div>
+
+            <div class="recent-box">
+                <h3>Recent Reports (Database Records)</h3>
+                {% for report in recent_reports %}
+                <div class="mini-report">
+                    <strong>{{ report["spot_code"] }}</strong> → {{ report["new_status"] }}
+                    <div class="mini-time">{{ report["created_at"] }}</div>
+                </div>
+                {% else %}
+                <p>No reports yet for this area.</p>
+                {% endfor %}
             </div>
         </div>
     </section>
 
-    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
     <script>
@@ -75,13 +91,27 @@
 
         let markersLayer = L.layerGroup().addTo(map);
 
+        function buildXML(area, spotCode, status) {
+            return `<parking_report>
+  <area>${area}</area>
+  <spot_code>${spotCode}</spot_code>
+  <status>${status}</status>
+</parking_report>`;
+        }
+
+        function updateXMLPreview(spotCode, status) {
+            const xml = buildXML(areaName, spotCode, status);
+            document.getElementById("xmlPreview").textContent = xml;
+        }
+
         function drawMap(spots) {
             markersLayer.clearLayers();
-
             const bounds = [];
 
             spots.forEach(spot => {
                 const color = spot.is_free === 1 ? "#16a34a" : "#dc2626";
+                const statusText = spot.is_free === 1 ? "Available" : "Full";
+                const symbol = spot.is_free === 1 ? "✓" : "X";
 
                 const marker = L.circleMarker([spot.latitude, spot.longitude], {
                     radius: 9,
@@ -91,22 +121,23 @@
                     fillOpacity: 1
                 });
 
-                const statusText = spot.is_free === 1 ? "Available" : "Full";
-                const symbol = spot.is_free === 1 ? "✓" : "X";
-
                 const popupHtml = `
-                    <div style="min-width:180px;">
+                    <div style="min-width:200px;">
                         <strong>${spot.spot_code}</strong><br>
                         Status: ${statusText} ${symbol}<br><br>
 
-                        <form method="POST" action="/report">
+                        <form method="POST" action="/report" onsubmit="updateXMLPreview('${spot.spot_code}', this.new_status.value)">
                             <input type="hidden" name="area" value="${spot.area}">
                             <input type="hidden" name="spot_code" value="${spot.spot_code}">
-                            <button class="popup-btn popup-green" type="submit" name="new_status" value="Available">
-                                Mark Available
-                            </button>
-                            <button class="popup-btn popup-red" type="submit" name="new_status" value="Full">
-                                Mark Full (X)
+
+                            <label class="popup-label">Select new status:</label>
+                            <select name="new_status" class="popup-select" onchange="updateXMLPreview('${spot.spot_code}', this.value)">
+                                <option value="Available">Available</option>
+                                <option value="Full">Full</option>
+                            </select>
+
+                            <button class="popup-btn popup-blue" type="submit">
+                                Submit Structured Report
                             </button>
                         </form>
                     </div>
@@ -114,7 +145,6 @@
 
                 marker.bindPopup(popupHtml);
                 marker.addTo(markersLayer);
-
                 bounds.push([spot.latitude, spot.longitude]);
             });
 
@@ -133,7 +163,6 @@
             try {
                 const response = await fetch(`/api/location/${encodeURIComponent(areaName)}`);
                 const data = await response.json();
-
                 updateSummary(data);
                 drawMap(data.spots);
             } catch (error) {
@@ -141,7 +170,6 @@
             }
         }
 
-        // first load from server data
         drawMap([
             {% for spot in spots %}
             {
@@ -155,7 +183,6 @@
             {% endfor %}
         ]);
 
-        // auto refresh every 5 seconds
         setInterval(refreshData, 5000);
     </script>
 </body>
