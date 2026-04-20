@@ -35,6 +35,111 @@ AREA_CENTERS = {
 }
 
 
+def seed_database():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Create parking_zones
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS parking_zones (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        zone_name TEXT,
+        total_spots INTEGER,
+        free_spots INTEGER,
+        status TEXT,
+        location TEXT,
+        destination_tag TEXT
+    )
+    """)
+
+    # Create parking_spots
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS parking_spots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        destination_tag TEXT,
+        zone_name TEXT,
+        spot_code TEXT,
+        is_free INTEGER,
+        latitude REAL,
+        longitude REAL
+    )
+    """)
+
+    # Create parking_reports
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS parking_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        spot_code TEXT,
+        status TEXT,
+        xml_data TEXT
+    )
+    """)
+
+    zone_count = cursor.execute("SELECT COUNT(*) AS c FROM parking_zones").fetchone()["c"]
+    spot_count = cursor.execute("SELECT COUNT(*) AS c FROM parking_spots").fetchone()["c"]
+
+    if zone_count == 0:
+        zones = [
+            ("Library Parking", 20, 10, "Available", "Library Area", "Library"),
+            ("FIT Parking", 20, 12, "Available", "FIT Area", "FIT"),
+            ("FOS Parking", 20, 8, "Limited", "Faculty of Science Area", "FOS"),
+            ("SDS Parking", 20, 9, "Available", "School of Digital Science Area", "SDS"),
+            ("UBDSBE Parking", 20, 5, "Limited", "UBDSBE Area", "UBDSBE"),
+            ("SAS Parking", 20, 11, "Available", "Student Affairs Area", "SAS"),
+            ("ADMIN Parking", 20, 4, "Limited", "Administration Area", "ADMIN"),
+        ]
+
+        cursor.executemany("""
+        INSERT INTO parking_zones
+        (zone_name, total_spots, free_spots, status, location, destination_tag)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """, zones)
+
+    if spot_count == 0:
+        base_locations = {
+            "Library": (4.9693, 114.8979),
+            "FIT": (4.9680, 114.8915),
+            "FOS": (4.9712, 114.8930),
+            "SDS": (4.9673, 114.8940),
+            "UBDSBE": (4.9662, 114.8964),
+            "SAS": (4.9701, 114.8950),
+            "ADMIN": (4.9708, 114.8968),
+        }
+
+        spot_rows = []
+
+        for area, (lat, lng) in base_locations.items():
+            for i in range(20):
+                row = i // 5
+                col = i % 5
+
+                offset_lat = lat + (row * 0.00003)
+                offset_lng = lng + (col * 0.00003)
+
+                is_free = 1 if i % 3 != 0 else 0
+
+                spot_rows.append((
+                    area,
+                    f"{area} Parking",
+                    f"{area[:2].upper()}-{i+1:02d}",
+                    is_free,
+                    offset_lat,
+                    offset_lng
+                ))
+
+        cursor.executemany("""
+        INSERT INTO parking_spots
+        (destination_tag, zone_name, spot_code, is_free, latitude, longitude)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """, spot_rows)
+
+    conn.commit()
+    conn.close()
+
+
+seed_database()
+
+
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -98,13 +203,11 @@ def parking_data(destination):
     conn = get_db_connection()
 
     zones = conn.execute("""
-        SELECT * FROM parking_zones
-        WHERE destination_tag = ?
+        SELECT * FROM parking_zones WHERE destination_tag = ?
     """, (destination,)).fetchall()
 
     spots = conn.execute("""
-        SELECT * FROM parking_spots
-        WHERE destination_tag = ?
+        SELECT * FROM parking_spots WHERE destination_tag = ?
     """, (destination,)).fetchall()
 
     conn.close()
@@ -146,21 +249,20 @@ def report():
         """, (is_free, spot_code))
 
         stats = conn.execute("""
-            SELECT COUNT(*) total,
-                   SUM(is_free) free
+            SELECT COUNT(*) total, SUM(is_free) free
             FROM parking_spots
-            WHERE zone_name = ?
-        """, (spot["zone_name"],)).fetchone()
+            WHERE destination_tag = ?
+        """, (spot["destination_tag"],)).fetchone()
 
-        total = stats["total"]
+        total = stats["total"] or 0
         free = stats["free"] or 0
         zone_status = calculate_status(free, total)
 
         conn.execute("""
             UPDATE parking_zones
             SET total_spots = ?, free_spots = ?, status = ?
-            WHERE zone_name = ?
-        """, (total, free, zone_status, spot["zone_name"]))
+            WHERE destination_tag = ?
+        """, (total, free, zone_status, spot["destination_tag"]))
 
         root = ET.Element("report")
         ET.SubElement(root, "spot").text = spot_code
