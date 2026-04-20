@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import random
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 import xml.etree.ElementTree as ET
@@ -35,11 +36,160 @@ AREA_CENTERS = {
 }
 
 
+def build_spot_rows():
+    spot_rows = []
+
+    # ------------------------
+    # LIBRARY (wide horizontal lot)
+    # ------------------------
+    base_lat, base_lng = 4.9693, 114.8979
+    for row in range(3):
+        for col in range(10):
+            spot_rows.append((
+                "Library",
+                "Library Parking",
+                f"LB-{row}{col}",
+                random.choice([0, 1]),
+                base_lat + (row * 0.00002),
+                base_lng + (col * 0.00003)
+            ))
+
+    # ------------------------
+    # FIT (vertical layout)
+    # ------------------------
+    base_lat, base_lng = 4.9680, 114.8915
+    for col in range(3):
+        for row in range(8):
+            spot_rows.append((
+                "FIT",
+                "FIT Parking",
+                f"FT-{row}{col}",
+                random.choice([0, 1]),
+                base_lat + (row * 0.00003),
+                base_lng + (col * 0.00002)
+            ))
+
+    # ------------------------
+    # ADMIN (L-shape layout)
+    # ------------------------
+    base_lat, base_lng = 4.9708, 114.8968
+    for i in range(8):
+        spot_rows.append((
+            "ADMIN",
+            "ADMIN Parking",
+            f"AD-A{i}",
+            random.choice([0, 1]),
+            base_lat,
+            base_lng + (i * 0.000025)
+        ))
+
+    for i in range(6):
+        spot_rows.append((
+            "ADMIN",
+            "ADMIN Parking",
+            f"AD-B{i}",
+            random.choice([0, 1]),
+            base_lat + (i * 0.000025),
+            base_lng
+        ))
+
+    # ------------------------
+    # FOS (cluster style)
+    # ------------------------
+    base_lat, base_lng = 4.9712, 114.8930
+    for i in range(15):
+        spot_rows.append((
+            "FOS",
+            "FOS Parking",
+            f"FS-{i}",
+            random.choice([0, 1]),
+            base_lat + random.uniform(-0.0001, 0.0001),
+            base_lng + random.uniform(-0.0001, 0.0001)
+        ))
+
+    # ------------------------
+    # SDS (small compact grid)
+    # ------------------------
+    base_lat, base_lng = 4.9673, 114.8940
+    for row in range(3):
+        for col in range(4):
+            spot_rows.append((
+                "SDS",
+                "SDS Parking",
+                f"SD-{row}{col}",
+                random.choice([0, 1]),
+                base_lat + (row * 0.00002),
+                base_lng + (col * 0.00002)
+            ))
+
+    # ------------------------
+    # UBDSBE (diagonal style)
+    # ------------------------
+    base_lat, base_lng = 4.9662, 114.8964
+    for i in range(10):
+        spot_rows.append((
+            "UBDSBE",
+            "UBDSBE Parking",
+            f"UB-{i}",
+            random.choice([0, 1]),
+            base_lat + (i * 0.00002),
+            base_lng + (i * 0.00002)
+        ))
+
+    # ------------------------
+    # SAS (rectangle)
+    # ------------------------
+    base_lat, base_lng = 4.9701, 114.8950
+    for row in range(4):
+        for col in range(4):
+            spot_rows.append((
+                "SAS",
+                "SAS Parking",
+                f"SA-{row}{col}",
+                random.choice([0, 1]),
+                base_lat + (row * 0.000025),
+                base_lng + (col * 0.000025)
+            ))
+
+    return spot_rows
+
+
+def compute_zone_summary_from_spots(spot_rows):
+    summary = {}
+
+    for destination_tag, zone_name, spot_code, is_free, latitude, longitude in spot_rows:
+        if destination_tag not in summary:
+            summary[destination_tag] = {
+                "zone_name": zone_name,
+                "total_spots": 0,
+                "free_spots": 0,
+                "status": "Available",
+                "location": AREA_CENTERS[destination_tag]["label"],
+                "destination_tag": destination_tag
+            }
+
+        summary[destination_tag]["total_spots"] += 1
+        summary[destination_tag]["free_spots"] += is_free
+
+    zones = []
+    for item in summary.values():
+        item["status"] = calculate_status(item["free_spots"], item["total_spots"])
+        zones.append((
+            item["zone_name"],
+            item["total_spots"],
+            item["free_spots"],
+            item["status"],
+            item["location"],
+            item["destination_tag"]
+        ))
+
+    return zones
+
+
 def seed_database():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Create parking_zones
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS parking_zones (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,7 +202,6 @@ def seed_database():
     )
     """)
 
-    # Create parking_spots
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS parking_spots (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,7 +214,6 @@ def seed_database():
     )
     """)
 
-    # Create parking_reports
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS parking_reports (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,54 +226,18 @@ def seed_database():
     zone_count = cursor.execute("SELECT COUNT(*) AS c FROM parking_zones").fetchone()["c"]
     spot_count = cursor.execute("SELECT COUNT(*) AS c FROM parking_spots").fetchone()["c"]
 
-    if zone_count == 0:
-        zones = [
-            ("Library Parking", 20, 10, "Available", "Library Area", "Library"),
-            ("FIT Parking", 20, 12, "Available", "FIT Area", "FIT"),
-            ("FOS Parking", 20, 8, "Limited", "Faculty of Science Area", "FOS"),
-            ("SDS Parking", 20, 9, "Available", "School of Digital Science Area", "SDS"),
-            ("UBDSBE Parking", 20, 5, "Limited", "UBDSBE Area", "UBDSBE"),
-            ("SAS Parking", 20, 11, "Available", "Student Affairs Area", "SAS"),
-            ("ADMIN Parking", 20, 4, "Limited", "Administration Area", "ADMIN"),
-        ]
+    if zone_count == 0 or spot_count == 0:
+        cursor.execute("DELETE FROM parking_zones")
+        cursor.execute("DELETE FROM parking_spots")
+
+        spot_rows = build_spot_rows()
+        zone_rows = compute_zone_summary_from_spots(spot_rows)
 
         cursor.executemany("""
         INSERT INTO parking_zones
         (zone_name, total_spots, free_spots, status, location, destination_tag)
         VALUES (?, ?, ?, ?, ?, ?)
-        """, zones)
-
-    if spot_count == 0:
-        base_locations = {
-            "Library": (4.9693, 114.8979),
-            "FIT": (4.9680, 114.8915),
-            "FOS": (4.9712, 114.8930),
-            "SDS": (4.9673, 114.8940),
-            "UBDSBE": (4.9662, 114.8964),
-            "SAS": (4.9701, 114.8950),
-            "ADMIN": (4.9708, 114.8968),
-        }
-
-        spot_rows = []
-
-        for area, (lat, lng) in base_locations.items():
-            for i in range(20):
-                row = i // 5
-                col = i % 5
-
-                offset_lat = lat + (row * 0.00003)
-                offset_lng = lng + (col * 0.00003)
-
-                is_free = 1 if i % 3 != 0 else 0
-
-                spot_rows.append((
-                    area,
-                    f"{area} Parking",
-                    f"{area[:2].upper()}-{i+1:02d}",
-                    is_free,
-                    offset_lat,
-                    offset_lng
-                ))
+        """, zone_rows)
 
         cursor.executemany("""
         INSERT INTO parking_spots
@@ -203,11 +315,13 @@ def parking_data(destination):
     conn = get_db_connection()
 
     zones = conn.execute("""
-        SELECT * FROM parking_zones WHERE destination_tag = ?
+        SELECT * FROM parking_zones
+        WHERE destination_tag = ?
     """, (destination,)).fetchall()
 
     spots = conn.execute("""
-        SELECT * FROM parking_spots WHERE destination_tag = ?
+        SELECT * FROM parking_spots
+        WHERE destination_tag = ?
     """, (destination,)).fetchall()
 
     conn.close()
