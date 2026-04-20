@@ -1,209 +1,62 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parking Result - Smart Park UBD</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script>
+    const areaCenter = {
+        lat: {{ area_center['lat'] }},
+        lng: {{ area_center['lng'] }},
+        label: {{ area_center['label']|tojson }}
+    };
 
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-        crossorigin=""
-    />
-</head>
-<body class="result-page">
-    <div class="page-shell">
-        <header class="simple-header google-header">
-            <div>
-                <h1>Parking Availability</h1>
-                <p>Selected area: <strong>{{ destination }}</strong></p>
-            </div>
-            <div class="header-actions">
-                <a href="{{ url_for('locations') }}" class="secondary-btn">Choose Another Area</a>
-                <a href="{{ url_for('home') }}" class="secondary-btn">Home</a>
-            </div>
-        </header>
+    const spots = [
+        {% for spot in spots %}
+        {
+            zone_name: {{ spot['zone_name']|tojson }},
+            section_code: {{ spot['section_code']|tojson }},
+            spot_code: {{ spot['spot_code']|tojson }},
+            is_free: {{ spot['is_free'] }},
+            lat: {{ spot['latitude'] }},
+            lng: {{ spot['longitude'] }}
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
 
-        {% if selected_area %}
-        <section class="google-results-layout">
-            <div class="results-column">
-                <div class="top-summary-grid">
-                    <div class="result-summary-card">
-                        <span class="hero-tag blue-tag">Selected Destination</span>
-                        <h2>{{ selected_area['zone_name'] }}</h2>
-                        <p>{{ selected_area['location'] }}</p>
+    const map = L.map('map').setView([areaCenter.lat, areaCenter.lng], 19);
 
-                        <div class="result-stats">
-                            <div class="result-stat-box">
-                                <h3>{{ total_free }}</h3>
-                                <span>Free Spots</span>
-                            </div>
-                            <div class="result-stat-box">
-                                <h3>{{ total_capacity }}</h3>
-                                <span>Total Capacity</span>
-                            </div>
-                        </div>
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 20,
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
 
-                        <p class="updated-note">Last updated: {{ last_updated }}</p>
-                    </div>
+    const bounds = [];
 
-                    {% if best_zone %}
-                    <div class="best-card">
-                        <span class="best-chip">Best Availability</span>
-                        <h3>{{ best_zone['zone_name'] }}</h3>
-                        <p>{{ best_zone['location'] }}</p>
-                        <div class="best-number">{{ best_zone['free_spots'] }} free spots</div>
-                        <div class="best-meta">Section {{ best_zone['section_code'] or 'N/A' }}</div>
-                    </div>
-                    {% endif %}
-                </div>
+    const centerMarker = L.marker([areaCenter.lat, areaCenter.lng]).addTo(map);
+    centerMarker.bindPopup(`<strong>${areaCenter.label}</strong>`);
 
-                <div class="zones-list-card">
-                    <div class="zones-list-header">
-                        <h3>Parking Sections</h3>
-                        <span>{{ zones|length }} area(s)</span>
-                    </div>
+    spots.forEach(spot => {
+        const color = spot.is_free === 1 ? "#16a34a" : "#ef4444";
 
-                    <div class="result-zones">
-                        {% for zone in zones %}
-                        <div class="result-zone-card {% if best_zone and zone['id'] == best_zone['id'] %}best-zone-highlight{% endif %}">
-                            <div class="result-zone-top">
-                                <div>
-                                    <h3>{{ zone['zone_name'] }}</h3>
-                                    <p class="section-label">Section {{ zone['section_code'] or 'N/A' }}</p>
-                                </div>
-                                <span class="status-pill 
-                                    {% if zone['status'] == 'Available' %}status-available
-                                    {% elif zone['status'] == 'Limited' %}status-limited
-                                    {% else %}status-full
-                                    {% endif %}">
-                                    {{ zone['status'] }}
-                                </span>
-                            </div>
-
-                            <p>{{ zone['location'] }}</p>
-
-                            <div class="parking-metric">
-                                <span class="big-number">{{ zone['free_spots'] }}</span>
-                                <span class="total-number">/ {{ zone['total_spots'] }}</span>
-                            </div>
-                            <p class="metric-label">Available Spaces</p>
-
-                            {% set percent = ((zone['free_spots'] / zone['total_spots']) * 100) | round(0) | int %}
-                            <div class="availability-bar">
-                                <div class="availability-fill
-                                    {% if zone['status'] == 'Available' %}fill-green
-                                    {% elif zone['status'] == 'Limited' %}fill-orange
-                                    {% else %}fill-red
-                                    {% endif %}"
-                                    style="width: {{ percent }}%;"></div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-
-            <aside class="map-column">
-                <div class="map-card google-map-card">
-                    <div class="map-card-header">
-                        <div>
-                            <h3>{{ area_center['label'] }}</h3>
-                            <p>Green = higher availability, orange = limited, red = full.</p>
-                        </div>
-                    </div>
-                    <div id="map"></div>
-                </div>
-            </aside>
-        </section>
-        {% else %}
-        <div class="empty-state">
-            <h3>No area selected</h3>
-            <p>Please choose a location first.</p>
-            <a href="{{ url_for('locations') }}" class="primary-btn">Choose Location</a>
-        </div>
-        {% endif %}
-    </div>
-
-    <script
-        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-        crossorigin="">
-    </script>
-
-    {% if zones %}
-    <script>
-        const areaCenter = {
-            lat: {{ area_center['lat'] }},
-            lng: {{ area_center['lng'] }},
-            label: {{ area_center['label']|tojson }}
-        };
-
-        const zones = [
-            {% for zone in zones %}
-            {
-                id: {{ zone['id'] }},
-                name: {{ zone['zone_name']|tojson }},
-                section: {{ (zone['section_code'] or 'N/A')|tojson }},
-                free_spots: {{ zone['free_spots'] }},
-                total_spots: {{ zone['total_spots'] }},
-                status: {{ zone['status']|tojson }},
-                location: {{ zone['location']|tojson }},
-                lat: {{ zone['latitude'] if zone['latitude'] is not none else area_center['lat'] }},
-                lng: {{ zone['longitude'] if zone['longitude'] is not none else area_center['lng'] }}
-            }{% if not loop.last %},{% endif %}
-            {% endfor %}
-        ];
-
-        const map = L.map('map').setView([areaCenter.lat, areaCenter.lng], 18);
-
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap'
+        const marker = L.circleMarker([spot.lat, spot.lng], {
+            radius: 8,
+            fillColor: color,
+            color: "#ffffff",
+            weight: 2,
+            opacity: 1,
+            fillOpacity: 0.95
         }).addTo(map);
 
-        function getMarkerColor(status) {
-            if (status === "Available") return "#16a34a";
-            if (status === "Limited") return "#f97316";
-            return "#ef4444";
-        }
+        const popupText = `
+            <div style="min-width:160px;">
+                <strong>${spot.spot_code}</strong><br>
+                Zone: ${spot.zone_name}<br>
+                Section: ${spot.section_code}<br>
+                Status: ${spot.is_free === 1 ? "Free" : "Occupied"}
+            </div>
+        `;
 
-        const bounds = [];
+        marker.bindPopup(popupText);
+        bounds.push([spot.lat, spot.lng]);
+    });
 
-        zones.forEach(zone => {
-            const marker = L.circleMarker([zone.lat, zone.lng], {
-                radius: 11,
-                fillColor: getMarkerColor(zone.status),
-                color: "#ffffff",
-                weight: 2,
-                opacity: 1,
-                fillOpacity: 0.95
-            }).addTo(map);
-
-            const popupText = `
-                <div style="min-width:180px;">
-                    <strong>${zone.name}</strong><br>
-                    Section: ${zone.section}<br>
-                    Free Spots: ${zone.free_spots} / ${zone.total_spots}<br>
-                    Status: ${zone.status}<br>
-                    ${zone.location}
-                </div>
-            `;
-
-            marker.bindPopup(popupText);
-            bounds.push([zone.lat, zone.lng]);
-        });
-
-        const centerMarker = L.marker([areaCenter.lat, areaCenter.lng]).addTo(map);
-        centerMarker.bindPopup(`<strong>${areaCenter.label}</strong>`);
-
-        if (bounds.length > 0) {
-            bounds.push([areaCenter.lat, areaCenter.lng]);
-            map.fitBounds(bounds, { padding: [40, 40] });
-        }
-    </script>
-    {% endif %}
-</body>
-</html>
+    if (bounds.length > 0) {
+        bounds.push([areaCenter.lat, areaCenter.lng]);
+        map.fitBounds(bounds, { padding: [30, 30] });
+    }
+</script>
