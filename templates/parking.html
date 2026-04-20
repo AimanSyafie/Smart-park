@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parking Result - Smart Park UBD</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""
+    />
 </head>
 <body class="result-page">
     <div class="page-shell">
@@ -45,7 +52,10 @@
                     {% for zone in zones %}
                     <div class="result-zone-card">
                         <div class="result-zone-top">
-                            <h3>{{ zone['zone_name'] }}</h3>
+                            <div>
+                                <h3>{{ zone['zone_name'] }}</h3>
+                                <p class="section-label">Section {{ zone['section_code'] or 'N/A' }}</p>
+                            </div>
                             <span class="status-pill 
                                 {% if zone['status'] == 'Available' %}status-available
                                 {% elif zone['status'] == 'Limited' %}status-limited
@@ -69,25 +79,9 @@
 
             <aside class="map-panel">
                 <div class="map-card">
-                    <h3>Parking Area View</h3>
-                    <p>This is a simple visual guide for the selected destination area.</p>
-
-                    <div class="fake-map">
-                        <div class="fake-map-title">UBD Campus Area</div>
-                        <div class="fake-map-selected">{{ destination }}</div>
-                        <div class="fake-map-spots">
-                            {% for zone in zones %}
-                            <div class="fake-spot 
-                                {% if zone['status'] == 'Available' %}spot-available
-                                {% elif zone['status'] == 'Limited' %}spot-limited
-                                {% else %}spot-full
-                                {% endif %}">
-                                <strong>{{ zone['zone_name'] }}</strong><br>
-                                {{ zone['free_spots'] }} / {{ zone['total_spots'] }} free
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
+                    <h3>Live Parking Map</h3>
+                    <p>Click a marker to see which section has available spots.</p>
+                    <div id="map"></div>
                 </div>
             </aside>
         </section>
@@ -99,5 +93,57 @@
         </div>
         {% endif %}
     </div>
+
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin="">
+    </script>
+
+    {% if zones %}
+    <script>
+        const zones = [
+            {% for zone in zones %}
+            {
+                name: {{ zone['zone_name']|tojson }},
+                section: {{ (zone['section_code'] or 'N/A')|tojson }},
+                free_spots: {{ zone['free_spots'] }},
+                total_spots: {{ zone['total_spots'] }},
+                status: {{ zone['status']|tojson }},
+                location: {{ zone['location']|tojson }},
+                lat: {{ zone['latitude'] if zone['latitude'] is not none else 4.9685 }},
+                lng: {{ zone['longitude'] if zone['longitude'] is not none else 114.8955 }}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        const map = L.map('map').setView([zones[0].lat, zones[0].lng], 17);
+
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        const bounds = [];
+
+        zones.forEach(zone => {
+            const popupText = `
+                <strong>${zone.name}</strong><br>
+                Section: ${zone.section}<br>
+                Free Spots: ${zone.free_spots} / ${zone.total_spots}<br>
+                Status: ${zone.status}<br>
+                ${zone.location}
+            `;
+
+            const marker = L.marker([zone.lat, zone.lng]).addTo(map);
+            marker.bindPopup(popupText);
+            bounds.push([zone.lat, zone.lng]);
+        });
+
+        if (bounds.length > 1) {
+            map.fitBounds(bounds, { padding: [30, 30] });
+        }
+    </script>
+    {% endif %}
 </body>
 </html>
