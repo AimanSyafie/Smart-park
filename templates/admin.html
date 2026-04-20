@@ -3,25 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Reports</title>
+    <title>Database & XML</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="page-body">
     <header class="top-bar">
-        <h1>Admin Reports</h1>
+        <h1>Database & Structured Text</h1>
         <a href="{{ url_for('home') }}" class="back-btn">← Back</a>
     </header>
 
     <section class="admin-section">
-        <h2>Submitted XML Reports</h2>
+        <h2>Parking Spots Table (Database)</h2>
+        <div class="table-wrap">
+            <table class="db-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Area</th>
+                        <th>Spot Code</th>
+                        <th>Latitude</th>
+                        <th>Longitude</th>
+                        <th>Available</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for spot in spots %}
+                    <tr>
+                        <td>{{ spot["id"] }}</td>
+                        <td>{{ spot["area"] }}</td>
+                        <td>{{ spot["spot_code"] }}</td>
+                        <td>{{ spot["latitude"] }}</td>
+                        <td>{{ spot["longitude"] }}</td>
+                        <td>{{ spot["is_free"] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
+        <h2>Structured XML Reports (Database Records)</h2>
         {% for report in reports %}
         <div class="report-card">
             <p><strong>Area:</strong> {{ report["area"] }}</p>
             <p><strong>Spot:</strong> {{ report["spot_code"] }}</p>
             <p><strong>Status:</strong> {{ report["new_status"] }}</p>
             <p><strong>Time:</strong> {{ report["created_at"] }}</p>
-
             <pre>{{ report["xml_data"] }}</pre>
         </div>
         {% else %}
