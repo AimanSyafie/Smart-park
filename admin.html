@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Dashboard - Smart Park UBD</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="topbar">
+        <h1>Smart Park UBD - Admin Dashboard</h1>
+        <p>Update parking availability for UBD campus areas.</p>
+    </header>
+
+    {% for zone in zones %}
+    <div class="zone-card">
+        <h2>{{ zone['zone_name'] }}</h2>
+        <p><strong>Location:</strong> {{ zone['location'] }}</p>
+        <p><strong>Current Free Spaces:</strong> {{ zone['free_spots'] }} / {{ zone['total_spots'] }}</p>
+        <p><strong>Status:</strong> {{ zone['status'] }}</p>
+
+        <form method="POST" action="{{ url_for('update_zone', zone_id=zone['id']) }}">
+            <label>Update Free Spaces:</label>
+            <input type="number" name="free_spots" min="0" max="{{ zone['total_spots'] }}" required>
+            <button type="submit">Update</button>
+        </form>
+    </div>
+    {% endfor %}
+</body>
+</html>
