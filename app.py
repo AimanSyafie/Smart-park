@@ -27,6 +27,11 @@ def calculate_status(free_spots, total_spots):
 AREA_CENTERS = {
     "Library": {"lat": 4.9693, "lng": 114.8979, "label": "Library Area"},
     "FIT": {"lat": 4.9680, "lng": 114.8915, "label": "FIT Area"},
+    "FOS": {"lat": 4.9712, "lng": 114.8930, "label": "Faculty of Science Area"},
+    "SDS": {"lat": 4.9673, "lng": 114.8940, "label": "School of Digital Science Area"},
+    "UBDSBE": {"lat": 4.9662, "lng": 114.8964, "label": "UBDSBE Area"},
+    "SAS": {"lat": 4.9701, "lng": 114.8950, "label": "Student Affairs Area"},
+    "ADMIN": {"lat": 4.9708, "lng": 114.8968, "label": "Administration Area"},
 }
 
 
@@ -67,11 +72,13 @@ def parking():
 
     total_free = sum(z["free_spots"] for z in zones)
     total_capacity = sum(z["total_spots"] for z in zones)
-
     best_zone = max(zones, key=lambda z: z["free_spots"]) if zones else None
     last_updated = datetime.now().strftime("%H:%M:%S")
 
-    area_center = AREA_CENTERS.get(destination, {"lat": 4.9685, "lng": 114.8955, "label": "UBD"})
+    area_center = AREA_CENTERS.get(
+        destination,
+        {"lat": 4.9685, "lng": 114.8955, "label": "UBD"}
+    )
 
     return render_template(
         "parking.html",
@@ -86,17 +93,18 @@ def parking():
     )
 
 
-# 🔥 AUTO REFRESH API
 @app.route("/api/parking/<destination>")
 def parking_data(destination):
     conn = get_db_connection()
 
     zones = conn.execute("""
-        SELECT * FROM parking_zones WHERE destination_tag = ?
+        SELECT * FROM parking_zones
+        WHERE destination_tag = ?
     """, (destination,)).fetchall()
 
     spots = conn.execute("""
-        SELECT * FROM parking_spots WHERE destination_tag = ?
+        SELECT * FROM parking_spots
+        WHERE destination_tag = ?
     """, (destination,)).fetchall()
 
     conn.close()
@@ -115,7 +123,6 @@ def parking_data(destination):
     })
 
 
-# 🔥 USER CONTRIBUTION
 @app.route("/report", methods=["POST"])
 def report():
     spot_code = request.form["spot_code"]
@@ -138,7 +145,6 @@ def report():
             WHERE spot_code = ?
         """, (is_free, spot_code))
 
-        # recompute zone
         stats = conn.execute("""
             SELECT COUNT(*) total,
                    SUM(is_free) free
@@ -148,19 +154,17 @@ def report():
 
         total = stats["total"]
         free = stats["free"] or 0
-        status_zone = calculate_status(free, total)
+        zone_status = calculate_status(free, total)
 
         conn.execute("""
             UPDATE parking_zones
-            SET total_spots=?, free_spots=?, status=?
-            WHERE zone_name=?
-        """, (total, free, status_zone, spot["zone_name"]))
+            SET total_spots = ?, free_spots = ?, status = ?
+            WHERE zone_name = ?
+        """, (total, free, zone_status, spot["zone_name"]))
 
-        # XML storage
         root = ET.Element("report")
         ET.SubElement(root, "spot").text = spot_code
         ET.SubElement(root, "status").text = status
-
         xml_data = ET.tostring(root, encoding="unicode")
 
         conn.execute("""
@@ -171,7 +175,44 @@ def report():
         conn.commit()
 
     conn.close()
-    return redirect(request.referrer)
+    return redirect(request.referrer or url_for("home"))
+
+
+@app.route("/admin")
+def admin():
+    conn = get_db_connection()
+    zones = conn.execute("""
+        SELECT * FROM parking_zones
+        ORDER BY zone_name
+    """).fetchall()
+    conn.close()
+    return render_template("admin.html", zones=zones)
+
+
+@app.route("/update/<int:zone_id>", methods=["POST"])
+def update_zone(zone_id):
+    free_spots = int(request.form["free_spots"])
+
+    conn = get_db_connection()
+    zone = conn.execute("""
+        SELECT * FROM parking_zones
+        WHERE id = ?
+    """, (zone_id,)).fetchone()
+
+    if zone:
+        total_spots = zone["total_spots"]
+        free_spots = max(0, min(free_spots, total_spots))
+        status = calculate_status(free_spots, total_spots)
+
+        conn.execute("""
+            UPDATE parking_zones
+            SET free_spots = ?, status = ?
+            WHERE id = ?
+        """, (free_spots, status, zone_id))
+        conn.commit()
+
+    conn.close()
+    return redirect(url_for("admin"))
 
 
 if __name__ == "__main__":
