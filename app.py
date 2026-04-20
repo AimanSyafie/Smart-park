@@ -8,10 +8,12 @@ app = Flask(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "smartpark.db")
 
+
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
 
 def calculate_status(free_spots, total_spots):
     if free_spots <= 0:
@@ -20,52 +22,63 @@ def calculate_status(free_spots, total_spots):
         return "Limited"
     return "Available"
 
+
 @app.route("/")
-def index():
+def home():
+    return render_template("home.html")
+
+
+@app.route("/locations")
+def locations():
+    conn = get_db_connection()
+    destinations = conn.execute("""
+        SELECT DISTINCT destination_tag, zone_name, location
+        FROM parking_zones
+        ORDER BY destination_tag
+    """).fetchall()
+    conn.close()
+    return render_template("locations.html", destinations=destinations)
+
+
+@app.route("/parking")
+def parking():
     destination = request.args.get("destination", "").strip()
-    keyword = request.args.get("keyword", "").strip()
 
     conn = get_db_connection()
 
-    query = "SELECT * FROM parking_zones WHERE 1=1"
-    params = []
+    zones = []
+    selected_area = None
 
     if destination:
-        query += " AND destination_tag = ?"
-        params.append(destination)
+        zones = conn.execute("""
+            SELECT * FROM parking_zones
+            WHERE destination_tag = ?
+            ORDER BY zone_name
+        """, (destination,)).fetchall()
 
-    if keyword:
-        query += " AND (zone_name LIKE ? OR location LIKE ?)"
-        params.extend([f"%{keyword}%", f"%{keyword}%"])
-
-    zones = conn.execute(query, params).fetchall()
-
-    all_destinations = conn.execute(
-        "SELECT DISTINCT destination_tag FROM parking_zones ORDER BY destination_tag"
-    ).fetchall()
-
-    summary = conn.execute("""
-        SELECT 
-            COUNT(*) AS total_areas,
-            SUM(free_spots) AS total_free_spaces,
-            SUM(CASE WHEN status = 'Limited' THEN 1 ELSE 0 END) AS limited_areas,
-            SUM(CASE WHEN status = 'Full' THEN 1 ELSE 0 END) AS full_areas
-        FROM parking_zones
-    """).fetchone()
+        selected_area = conn.execute("""
+            SELECT destination_tag, zone_name, location
+            FROM parking_zones
+            WHERE destination_tag = ?
+            LIMIT 1
+        """, (destination,)).fetchone()
 
     conn.close()
 
+    total_free = sum(zone["free_spots"] for zone in zones) if zones else 0
+    total_capacity = sum(zone["total_spots"] for zone in zones) if zones else 0
     last_updated = datetime.now().strftime("%d %b %Y, %I:%M %p")
 
     return render_template(
-        "index.html",
+        "parking.html",
         zones=zones,
-        destinations=all_destinations,
-        selected_destination=destination,
-        keyword=keyword,
-        summary=summary,
+        selected_area=selected_area,
+        destination=destination,
+        total_free=total_free,
+        total_capacity=total_capacity,
         last_updated=last_updated
     )
+
 
 @app.route("/admin")
 def admin():
@@ -73,6 +86,7 @@ def admin():
     zones = conn.execute("SELECT * FROM parking_zones ORDER BY zone_name").fetchall()
     conn.close()
     return render_template("admin.html", zones=zones)
+
 
 @app.route("/update/<int:zone_id>", methods=["POST"])
 def update_zone(zone_id):
@@ -103,6 +117,7 @@ def update_zone(zone_id):
 
     conn.close()
     return redirect(url_for("admin"))
+
 
 if __name__ == "__main__":
     app.run(debug=True)
