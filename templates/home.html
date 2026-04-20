@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UBD Find Park</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="home-body">
+    <section class="hero">
+        <div class="hero-content">
+            <h1>UBD Find Park</h1>
+            <p>View real-time parking availability and parking spots within UBD campus.</p>
+        </div>
+    </section>
+
+    <section class="area-section">
+        <h2>Choose a Location</h2>
+        <div class="area-grid">
+            {% for area in areas %}
+            <a href="{{ url_for('location', area=area) }}" class="area-card">
+                <h3>{{ area }}</h3>
+                <p>View parking spots</p>
+            </a>
+            {% endfor %}
+        </div>
+    </section>
+</body>
+</html>
