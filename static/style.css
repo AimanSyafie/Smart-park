@@ -1,32 +1,314 @@
-#map {
+/* Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+}
+
+/* =========================
+   LANDING PAGE
+========================= */
+
+.landing-body {
+    margin: 0;
+    background: #0b1f3a;
+}
+
+.hero {
+    min-height: 100vh;
+    background: linear-gradient(135deg, rgba(8,44,92,0.92), rgba(14,84,160,0.78)),
+        url('https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=1600&q=80')
+        center/cover no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hero-overlay {
     width: 100%;
-    height: 420px;
+    padding: 40px;
+}
+
+.hero-content {
+    max-width: 700px;
+    margin: 0 auto;
+    text-align: center;
+    color: white;
+}
+
+.hero-tag {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.hero-content h1 {
+    font-size: 56px;
+    margin-bottom: 16px;
+}
+
+.hero-content p {
+    font-size: 20px;
+    margin-bottom: 30px;
+    line-height: 1.6;
+}
+
+.hero-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+/* Buttons */
+
+.primary-btn,
+.secondary-btn {
+    padding: 14px 22px;
+    border-radius: 12px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.primary-btn {
+    background: white;
+    color: #0d3f8f;
+}
+
+.secondary-btn {
+    background: #e5eefc;
+    color: #0d3f8f;
+}
+
+/* =========================
+   SHARED LAYOUT
+========================= */
+
+.selection-page,
+.result-page {
+    background: #f4f7fb;
+    min-height: 100vh;
+}
+
+.page-shell {
+    max-width: 1200px;
+    margin: auto;
+    padding: 30px;
+}
+
+.simple-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 25px;
+}
+
+.simple-header h1 {
+    font-size: 38px;
+    color: #13366f;
+}
+
+.simple-header p {
+    color: #475569;
+}
+
+/* =========================
+   LOCATION CARDS
+========================= */
+
+.location-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+.location-card {
+    background: white;
     border-radius: 18px;
-    overflow: hidden;
-    margin-top: 12px;
+    padding: 20px;
+    text-decoration: none;
+    color: black;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+    transition: 0.2s;
+}
+
+.location-card:hover {
+    transform: translateY(-5px);
+}
+
+.location-icon {
+    width: 50px;
+    height: 50px;
+    background: #dbeafe;
+    color: #2563eb;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-bottom: 12px;
+}
+
+.location-card h3 {
+    font-size: 20px;
+}
+
+.location-card span {
+    font-size: 13px;
+    color: #64748b;
+}
+
+/* =========================
+   RESULT PAGE
+========================= */
+
+.result-layout {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+}
+
+.result-summary-card {
+    background: white;
+    padding: 22px;
+    border-radius: 16px;
+    margin-bottom: 20px;
+}
+
+.result-summary-card h2 {
+    font-size: 28px;
+}
+
+.result-stats {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.result-stat-box {
+    flex: 1;
+    background: #eef5ff;
+    padding: 16px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.result-stat-box h3 {
+    font-size: 28px;
+}
+
+/* Parking Cards */
+
+.result-zone-card {
+    background: white;
+    padding: 20px;
+    border-radius: 16px;
+    margin-bottom: 12px;
+}
+
+.result-zone-top {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
 }
 
 .section-label {
-    color: #64748b;
-    font-size: 14px;
-    margin-top: 4px;
+    font-size: 13px;
+    color: gray;
 }
 
-.result-zone-card {
-    border-left: 6px solid #0d3f8f;
+/* Status */
+
+.status-pill {
+    padding: 6px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+}
+
+.status-available {
+    background: #dcfce7;
+    color: green;
+}
+
+.status-limited {
+    background: #fff7ed;
+    color: orange;
+}
+
+.status-full {
+    background: #fee2e2;
+    color: red;
+}
+
+/* Map */
+
+#map {
+    width: 100%;
+    height: 420px;
+    border-radius: 16px;
 }
 
 .map-card {
     background: white;
-    border-radius: 22px;
-    padding: 24px;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-    position: sticky;
-    top: 24px;
+    padding: 20px;
+    border-radius: 16px;
 }
 
-@media (max-width: 1100px) {
-    #map {
-        height: 340px;
+/* =========================
+   ADMIN PAGE
+========================= */
+
+.admin-page {
+    padding: 30px;
+    background: #f4f7fb;
+}
+
+.admin-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.admin-card {
+    background: white;
+    padding: 20px;
+    border-radius: 16px;
+}
+
+.admin-form input {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    margin-bottom: 10px;
+}
+
+.admin-form button {
+    padding: 10px;
+    background: #0d3f8f;
+    color: white;
+    border: none;
+    border-radius: 8px;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 900px) {
+    .location-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .result-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-grid {
+        grid-template-columns: 1fr;
     }
 }
