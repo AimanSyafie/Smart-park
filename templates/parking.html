@@ -1,62 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Parking</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+
+<body>
+
+<h2>Parking: {{ destination }}</h2>
+<p>Free: <span id="free">{{ total_free }}</span> / <span id="total">{{ total_capacity }}</span></p>
+<p>Updated: <span id="time">{{ last_updated }}</span></p>
+
+<div id="map" style="height:500px;"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <script>
-    const areaCenter = {
-        lat: {{ area_center['lat'] }},
-        lng: {{ area_center['lng'] }},
-        label: {{ area_center['label']|tojson }}
-    };
 
-    const spots = [
-        {% for spot in spots %}
-        {
-            zone_name: {{ spot['zone_name']|tojson }},
-            section_code: {{ spot['section_code']|tojson }},
-            spot_code: {{ spot['spot_code']|tojson }},
-            is_free: {{ spot['is_free'] }},
-            lat: {{ spot['latitude'] }},
-            lng: {{ spot['longitude'] }}
-        }{% if not loop.last %},{% endif %}
-        {% endfor %}
-    ];
+const destination = "{{ destination }}";
 
-    const map = L.map('map').setView([areaCenter.lat, areaCenter.lng], 19);
+const map = L.map('map').setView(
+    [{{ area_center['lat'] }}, {{ area_center['lng'] }}], 
+    19
+);
 
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 20,
-        attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    const bounds = [];
+let layer = L.layerGroup().addTo(map);
 
-    const centerMarker = L.marker([areaCenter.lat, areaCenter.lng]).addTo(map);
-    centerMarker.bindPopup(`<strong>${areaCenter.label}</strong>`);
+function render(spots){
+    layer.clearLayers();
 
-    spots.forEach(spot => {
-        const color = spot.is_free === 1 ? "#16a34a" : "#ef4444";
+    spots.forEach(s=>{
+        const color = s.is_free ? "green" : "red";
 
-        const marker = L.circleMarker([spot.lat, spot.lng], {
-            radius: 8,
+        const m = L.circleMarker([s.latitude, s.longitude], {
+            radius: 6,
             fillColor: color,
-            color: "#ffffff",
-            weight: 2,
-            opacity: 1,
-            fillOpacity: 0.95
-        }).addTo(map);
+            color:"#fff",
+            fillOpacity:1
+        }).addTo(layer);
 
-        const popupText = `
-            <div style="min-width:160px;">
-                <strong>${spot.spot_code}</strong><br>
-                Zone: ${spot.zone_name}<br>
-                Section: ${spot.section_code}<br>
-                Status: ${spot.is_free === 1 ? "Free" : "Occupied"}
-            </div>
-        `;
+        m.bindPopup(`
+            <b>${s.spot_code}</b><br>
+            ${s.is_free ? "Free" : "Occupied"}<br><br>
 
-        marker.bindPopup(popupText);
-        bounds.push([spot.lat, spot.lng]);
+            <form method="POST" action="/report">
+                <input type="hidden" name="spot_code" value="${s.spot_code}">
+                <button name="status" value="Free">Free</button>
+                <button name="status" value="Full">Full</button>
+            </form>
+        `);
     });
+}
 
-    if (bounds.length > 0) {
-        bounds.push([areaCenter.lat, areaCenter.lng]);
-        map.fitBounds(bounds, { padding: [30, 30] });
-    }
+async function refresh(){
+    const res = await fetch(`/api/parking/${destination}`);
+    const data = await res.json();
+
+    document.getElementById("free").innerText = data.total_free;
+    document.getElementById("total").innerText = data.total_capacity;
+    document.getElementById("time").innerText = data.time;
+
+    render(data.spots);
+}
+
+// initial render
+render([
+{% for s in spots %}
+{
+    spot_code: "{{ s['spot_code'] }}",
+    is_free: {{ s['is_free'] }},
+    latitude: {{ s['latitude'] }},
+    longitude: {{ s['longitude'] }}
+},
+{% endfor %}
+]);
+
+// 🔥 auto refresh every 5 seconds
+setInterval(refresh, 5000);
+
 </script>
+
+</body>
+</html>
