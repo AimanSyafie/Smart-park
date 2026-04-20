@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ area }} Parking</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <!-- Leaflet -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        crossorigin=""
+    />
+</head>
+<body class="page-body">
+    <header class="top-bar">
+        <h1>{{ area }} Parking</h1>
+        <a href="{{ url_for('home') }}" class="back-btn">← Back</a>
+    </header>
+
+    <section class="summary-cards">
+        <div class="summary-card">
+            <h3>Total Spots</h3>
+            <p id="totalSpots">{{ total_spots }}</p>
+        </div>
+        <div class="summary-card green-card">
+            <h3>Available</h3>
+            <p id="freeSpots">{{ free_spots }}</p>
+        </div>
+        <div class="summary-card red-card">
+            <h3>Full</h3>
+            <p id="fullSpots">{{ full_spots }}</p>
+        </div>
+    </section>
+
+    <section class="location-layout">
+        <div class="map-panel">
+            <div id="map"></div>
+        </div>
+
+        <div class="info-panel">
+            <h2>How to Use</h2>
+            <p>Click any parking spot on the map.</p>
+            <p>
+                <span class="legend green-dot"></span> Green = Available
+            </p>
+            <p>
+                <span class="legend red-dot"></span> Red/X = Full
+            </p>
+
+            <div class="note-box">
+                <h3>Structured Text Feature</h3>
+                <p>
+                    When a user updates a spot, the report is saved into the database as XML.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+    <script>
+        const areaName = {{ area|tojson }};
+        const centerLat = {{ center['lat'] }};
+        const centerLng = {{ center['lng'] }};
+
+        const map = L.map('map').setView([centerLat, centerLng], 19);
+
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 20,
+            attribution: '&copy; OpenStreetMap'
+        }).addTo(map);
+
+        let markersLayer = L.layerGroup().addTo(map);
+
+        function drawMap(spots) {
+            markersLayer.clearLayers();
+
+            const bounds = [];
+
+            spots.forEach(spot => {
+                const color = spot.is_free === 1 ? "#16a34a" : "#dc2626";
+
+                const marker = L.circleMarker([spot.latitude, spot.longitude], {
+                    radius: 9,
+                    fillColor: color,
+                    color: "#ffffff",
+                    weight: 2,
+                    fillOpacity: 1
+                });
+
+                const statusText = spot.is_free === 1 ? "Available" : "Full";
+                const symbol = spot.is_free === 1 ? "✓" : "X";
+
+                const popupHtml = `
+                    <div style="min-width:180px;">
+                        <strong>${spot.spot_code}</strong><br>
+                        Status: ${statusText} ${symbol}<br><br>
+
+                        <form method="POST" action="/report">
+                            <input type="hidden" name="area" value="${spot.area}">
+                            <input type="hidden" name="spot_code" value="${spot.spot_code}">
+                            <button class="popup-btn popup-green" type="submit" name="new_status" value="Available">
+                                Mark Available
+                            </button>
+                            <button class="popup-btn popup-red" type="submit" name="new_status" value="Full">
+                                Mark Full (X)
+                            </button>
+                        </form>
+                    </div>
+                `;
+
+                marker.bindPopup(popupHtml);
+                marker.addTo(markersLayer);
+
+                bounds.push([spot.latitude, spot.longitude]);
+            });
+
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, {padding: [20, 20]});
+            }
+        }
+
+        function updateSummary(data) {
+            document.getElementById("totalSpots").textContent = data.total_spots;
+            document.getElementById("freeSpots").textContent = data.free_spots;
+            document.getElementById("fullSpots").textContent = data.full_spots;
+        }
+
+        async function refreshData() {
+            try {
+                const response = await fetch(`/api/location/${encodeURIComponent(areaName)}`);
+                const data = await response.json();
+
+                updateSummary(data);
+                drawMap(data.spots);
+            } catch (error) {
+                console.log("Refresh error:", error);
+            }
+        }
+
+        // first load from server data
+        drawMap([
+            {% for spot in spots %}
+            {
+                id: {{ spot["id"] }},
+                area: {{ spot["area"]|tojson }},
+                spot_code: {{ spot["spot_code"]|tojson }},
+                latitude: {{ spot["latitude"] }},
+                longitude: {{ spot["longitude"] }},
+                is_free: {{ spot["is_free"] }}
+            }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ]);
+
+        // auto refresh every 5 seconds
+        setInterval(refreshData, 5000);
+    </script>
+</body>
+</html>
