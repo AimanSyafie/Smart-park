@@ -32,7 +32,7 @@ def home():
 def locations():
     conn = get_db_connection()
     destinations = conn.execute("""
-        SELECT DISTINCT destination_tag, location
+        SELECT DISTINCT destination_tag, zone_name, location
         FROM parking_zones
         ORDER BY destination_tag
     """).fetchall()
@@ -53,11 +53,11 @@ def parking():
         zones = conn.execute("""
             SELECT * FROM parking_zones
             WHERE destination_tag = ?
-            ORDER BY section_code
+            ORDER BY zone_name
         """, (destination,)).fetchall()
 
         selected_area = conn.execute("""
-            SELECT destination_tag, location
+            SELECT destination_tag, zone_name, location
             FROM parking_zones
             WHERE destination_tag = ?
             LIMIT 1
