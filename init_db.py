@@ -78,10 +78,10 @@ def add_spots(area, base_lat, base_lng, free_spot_codes=None):
 # all full except SDS has 3 free
 # =========================
 add_spots("Library", 4.96920, 114.89770)
-add_spots("FOS",     4.97100, 114.89280)
+add_spots("FOS",     4.975646, 114.895485)
 add_spots("FIT",     4.96800, 114.89150)
-add_spots("SDS",     4.96730, 114.89400, free_spot_codes=["SDS-02", "SDS-05", "SDS-08"])
-add_spots("UBDSBE",  4.96620, 114.89640)
+add_spots("SDS",     4.976578, 114.893015, free_spot_codes=["SDS-02", "SDS-05", "SDS-08"])
+add_spots("UBDSBE",  4.974128, 114.892298)
 add_spots("SAS",     4.97010, 114.89500)
 add_spots("ADMIN",   4.97080, 114.89680)
 
