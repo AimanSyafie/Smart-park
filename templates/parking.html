@@ -15,7 +15,7 @@
 </head>
 <body class="result-page">
     <div class="page-shell">
-        <header class="simple-header">
+        <header class="simple-header google-header">
             <div>
                 <h1>Parking Availability</h1>
                 <p>Selected area: <strong>{{ destination }}</strong></p>
@@ -27,60 +27,93 @@
         </header>
 
         {% if selected_area %}
-        <section class="result-layout">
-            <div class="result-main">
-                <div class="result-summary-card">
-                    <span class="hero-tag">Selected Destination</span>
-                    <h2>{{ selected_area['zone_name'] }}</h2>
-                    <p>{{ selected_area['location'] }}</p>
+        <section class="google-results-layout">
+            <div class="results-column">
+                <div class="top-summary-grid">
+                    <div class="result-summary-card">
+                        <span class="hero-tag blue-tag">Selected Destination</span>
+                        <h2>{{ selected_area['zone_name'] }}</h2>
+                        <p>{{ selected_area['location'] }}</p>
 
-                    <div class="result-stats">
-                        <div class="result-stat-box">
-                            <h3>{{ total_free }}</h3>
-                            <span>Free Spots</span>
+                        <div class="result-stats">
+                            <div class="result-stat-box">
+                                <h3>{{ total_free }}</h3>
+                                <span>Free Spots</span>
+                            </div>
+                            <div class="result-stat-box">
+                                <h3>{{ total_capacity }}</h3>
+                                <span>Total Capacity</span>
+                            </div>
                         </div>
-                        <div class="result-stat-box">
-                            <h3>{{ total_capacity }}</h3>
-                            <span>Total Capacity</span>
-                        </div>
+
+                        <p class="updated-note">Last updated: {{ last_updated }}</p>
                     </div>
 
-                    <p class="updated-note">Last updated: {{ last_updated }}</p>
+                    {% if best_zone %}
+                    <div class="best-card">
+                        <span class="best-chip">Best Availability</span>
+                        <h3>{{ best_zone['zone_name'] }}</h3>
+                        <p>{{ best_zone['location'] }}</p>
+                        <div class="best-number">{{ best_zone['free_spots'] }} free spots</div>
+                        <div class="best-meta">Section {{ best_zone['section_code'] or 'N/A' }}</div>
+                    </div>
+                    {% endif %}
                 </div>
 
-                <div class="result-zones">
-                    {% for zone in zones %}
-                    <div class="result-zone-card">
-                        <div class="result-zone-top">
-                            <div>
-                                <h3>{{ zone['zone_name'] }}</h3>
-                                <p class="section-label">Section {{ zone['section_code'] or 'N/A' }}</p>
-                            </div>
-                            <span class="status-pill 
-                                {% if zone['status'] == 'Available' %}status-available
-                                {% elif zone['status'] == 'Limited' %}status-limited
-                                {% else %}status-full
-                                {% endif %}">
-                                {{ zone['status'] }}
-                            </span>
-                        </div>
-
-                        <p>{{ zone['location'] }}</p>
-
-                        <div class="parking-metric">
-                            <span class="big-number">{{ zone['free_spots'] }}</span>
-                            <span class="total-number">/ {{ zone['total_spots'] }}</span>
-                        </div>
-                        <p class="metric-label">Available Spaces</p>
+                <div class="zones-list-card">
+                    <div class="zones-list-header">
+                        <h3>Parking Sections</h3>
+                        <span>{{ zones|length }} area(s)</span>
                     </div>
-                    {% endfor %}
+
+                    <div class="result-zones">
+                        {% for zone in zones %}
+                        <div class="result-zone-card {% if best_zone and zone['id'] == best_zone['id'] %}best-zone-highlight{% endif %}">
+                            <div class="result-zone-top">
+                                <div>
+                                    <h3>{{ zone['zone_name'] }}</h3>
+                                    <p class="section-label">Section {{ zone['section_code'] or 'N/A' }}</p>
+                                </div>
+                                <span class="status-pill 
+                                    {% if zone['status'] == 'Available' %}status-available
+                                    {% elif zone['status'] == 'Limited' %}status-limited
+                                    {% else %}status-full
+                                    {% endif %}">
+                                    {{ zone['status'] }}
+                                </span>
+                            </div>
+
+                            <p>{{ zone['location'] }}</p>
+
+                            <div class="parking-metric">
+                                <span class="big-number">{{ zone['free_spots'] }}</span>
+                                <span class="total-number">/ {{ zone['total_spots'] }}</span>
+                            </div>
+                            <p class="metric-label">Available Spaces</p>
+
+                            {% set percent = ((zone['free_spots'] / zone['total_spots']) * 100) | round(0) | int %}
+                            <div class="availability-bar">
+                                <div class="availability-fill
+                                    {% if zone['status'] == 'Available' %}fill-green
+                                    {% elif zone['status'] == 'Limited' %}fill-orange
+                                    {% else %}fill-red
+                                    {% endif %}"
+                                    style="width: {{ percent }}%;"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
 
-            <aside class="map-panel">
-                <div class="map-card">
-                    <h3>Live Parking Map</h3>
-                    <p>Click a marker to see which section has available spots.</p>
+            <aside class="map-column">
+                <div class="map-card google-map-card">
+                    <div class="map-card-header">
+                        <div>
+                            <h3>{{ area_center['label'] }}</h3>
+                            <p>Green = higher availability, orange = limited, red = full.</p>
+                        </div>
+                    </div>
                     <div id="map"></div>
                 </div>
             </aside>
@@ -102,46 +135,73 @@
 
     {% if zones %}
     <script>
+        const areaCenter = {
+            lat: {{ area_center['lat'] }},
+            lng: {{ area_center['lng'] }},
+            label: {{ area_center['label']|tojson }}
+        };
+
         const zones = [
             {% for zone in zones %}
             {
+                id: {{ zone['id'] }},
                 name: {{ zone['zone_name']|tojson }},
                 section: {{ (zone['section_code'] or 'N/A')|tojson }},
                 free_spots: {{ zone['free_spots'] }},
                 total_spots: {{ zone['total_spots'] }},
                 status: {{ zone['status']|tojson }},
                 location: {{ zone['location']|tojson }},
-                lat: {{ zone['latitude'] if zone['latitude'] is not none else 4.9685 }},
-                lng: {{ zone['longitude'] if zone['longitude'] is not none else 114.8955 }}
+                lat: {{ zone['latitude'] if zone['latitude'] is not none else area_center['lat'] }},
+                lng: {{ zone['longitude'] if zone['longitude'] is not none else area_center['lng'] }}
             }{% if not loop.last %},{% endif %}
             {% endfor %}
         ];
 
-        const map = L.map('map').setView([zones[0].lat, zones[0].lng], 17);
+        const map = L.map('map').setView([areaCenter.lat, areaCenter.lng], 18);
 
         L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
+        function getMarkerColor(status) {
+            if (status === "Available") return "#16a34a";
+            if (status === "Limited") return "#f97316";
+            return "#ef4444";
+        }
+
         const bounds = [];
 
         zones.forEach(zone => {
+            const marker = L.circleMarker([zone.lat, zone.lng], {
+                radius: 11,
+                fillColor: getMarkerColor(zone.status),
+                color: "#ffffff",
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.95
+            }).addTo(map);
+
             const popupText = `
-                <strong>${zone.name}</strong><br>
-                Section: ${zone.section}<br>
-                Free Spots: ${zone.free_spots} / ${zone.total_spots}<br>
-                Status: ${zone.status}<br>
-                ${zone.location}
+                <div style="min-width:180px;">
+                    <strong>${zone.name}</strong><br>
+                    Section: ${zone.section}<br>
+                    Free Spots: ${zone.free_spots} / ${zone.total_spots}<br>
+                    Status: ${zone.status}<br>
+                    ${zone.location}
+                </div>
             `;
 
-            const marker = L.marker([zone.lat, zone.lng]).addTo(map);
             marker.bindPopup(popupText);
             bounds.push([zone.lat, zone.lng]);
         });
 
-        if (bounds.length > 1) {
-            map.fitBounds(bounds, { padding: [30, 30] });
+        const centerMarker = L.marker([areaCenter.lat, areaCenter.lng]).addTo(map);
+        centerMarker.bindPopup(`<strong>${areaCenter.label}</strong>`);
+
+        if (bounds.length > 0) {
+            bounds.push([areaCenter.lat, areaCenter.lng]);
+            map.fitBounds(bounds, { padding: [40, 40] });
         }
     </script>
     {% endif %}
