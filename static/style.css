@@ -37,10 +37,25 @@ body {
     padding: 0 20px;
 }
 
-.area-section h2 {
+.section-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
     margin-bottom: 20px;
+}
+
+.area-section h2 {
     font-size: 30px;
     color: #13366f;
+}
+
+.admin-link-btn {
+    background: #0b3b77;
+    color: white;
+    text-decoration: none;
+    padding: 12px 16px;
+    border-radius: 10px;
 }
 
 .area-grid {
@@ -80,10 +95,16 @@ body {
     background: white;
     padding: 20px 30px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    gap: 16px;
 }
 
 .top-bar h1 {
     color: #13366f;
+}
+
+.top-bar-actions {
+    display: flex;
+    gap: 10px;
 }
 
 .back-btn {
@@ -92,6 +113,10 @@ body {
     color: white;
     padding: 10px 16px;
     border-radius: 10px;
+}
+
+.alt-btn {
+    background: #64748b;
 }
 
 /* Summary */
@@ -163,11 +188,46 @@ body {
     line-height: 1.5;
 }
 
-.note-box {
+.note-box,
+.xml-box,
+.recent-box {
     margin-top: 20px;
     background: #eef4ff;
     padding: 16px;
     border-radius: 12px;
+}
+
+.xml-box pre {
+    margin-top: 10px;
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 10px;
+    white-space: pre-wrap;
+    overflow-x: auto;
+}
+
+.feature-list {
+    margin-top: 10px;
+    padding-left: 18px;
+}
+
+.feature-list li {
+    margin-bottom: 8px;
+}
+
+.mini-report {
+    padding: 10px 0;
+    border-bottom: 1px solid #dbe3ef;
+}
+
+.mini-report:last-child {
+    border-bottom: none;
+}
+
+.mini-time {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 4px;
 }
 
 .legend {
@@ -186,23 +246,30 @@ body {
     background: #dc2626;
 }
 
-/* Popup buttons */
+/* Popup */
+.popup-label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+.popup-select {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 10px;
+}
+
 .popup-btn {
     border: none;
-    padding: 8px 10px;
-    margin-right: 6px;
-    margin-top: 8px;
+    padding: 10px 12px;
     border-radius: 8px;
     color: white;
     cursor: pointer;
+    width: 100%;
 }
 
-.popup-green {
-    background: #16a34a;
-}
-
-.popup-red {
-    background: #dc2626;
+.popup-blue {
+    background: #2563eb;
 }
 
 /* Admin */
@@ -215,6 +282,32 @@ body {
 .admin-section h2 {
     margin-bottom: 20px;
     color: #13366f;
+    margin-top: 30px;
+}
+
+.table-wrap {
+    overflow-x: auto;
+    background: white;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+}
+
+.db-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.db-table th,
+.db-table td {
+    border: 1px solid #e5e7eb;
+    padding: 10px;
+    text-align: left;
+    font-size: 14px;
+}
+
+.db-table th {
+    background: #f8fafc;
 }
 
 .report-card {
@@ -248,5 +341,11 @@ body {
 
     #map {
         height: 420px;
+    }
+
+    .section-header-row,
+    .top-bar {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
