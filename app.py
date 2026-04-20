@@ -22,7 +22,7 @@ def get_db_connection():
 
 
 # =========================
-# CREATE DATABASE IF MISSING
+# CREATE / RESET DATABASE
 # =========================
 def setup_database():
     conn = get_db_connection()
@@ -52,42 +52,50 @@ def setup_database():
     )
     """)
 
-    # Check if parking_spots already has data
-    count = cursor.execute("SELECT COUNT(*) AS c FROM parking_spots").fetchone()["c"]
+    # IMPORTANT: clear old parking spots
+    cursor.execute("DELETE FROM parking_spots")
 
-    if count == 0:
-        spots = []
+    spots = []
 
-        def add_spots(area, base_lat, base_lng, free_spot_codes=None):
-            if free_spot_codes is None:
-                free_spot_codes = []
+    # =========================
+    # FUNCTION TO ADD SPOTS
+    # =========================
+    def add_spots(area, base_lat, base_lng, free_spot_codes=None):
+        if free_spot_codes is None:
+            free_spot_codes = []
 
-            count = 1
-            for row in range(2):      # 2 rows
-                for col in range(5):  # 5 spots per row
-                    spot_code = f"{area[:3].upper()}-{count:02d}"
+        count = 1
 
-                    lat = base_lat + (row * 0.00012)
-                    lng = base_lng + (col * 0.00008)
+        # 2 parking rows, 5 spots each
+        for row in range(2):
+            for col in range(5):
+                spot_code = f"{area[:3].upper()}-{count:02d}"
 
-                    is_free = 1 if spot_code in free_spot_codes else 0
+                # parking row layout
+                lat = base_lat + (row * 0.00012)
+                lng = base_lng + (col * 0.00008)
 
-                    spots.append((area, spot_code, lat, lng, is_free))
-                    count += 1
+                is_free = 1 if spot_code in free_spot_codes else 0
 
-        # All full except SDS has 3 free
-        add_spots("Library", 4.96920, 114.89770)
-        add_spots("FOS",     4.97100, 114.89280)
-        add_spots("FIT",     4.96800, 114.89150)
-        add_spots("SDS",     4.96730, 114.89400, free_spot_codes=["SDS-02", "SDS-05", "SDS-08"])
-        add_spots("UBDSBE",  4.96620, 114.89640)
-        add_spots("SAS",     4.97010, 114.89500)
-        add_spots("ADMIN",   4.97080, 114.89680)
+                spots.append((area, spot_code, lat, lng, is_free))
+                count += 1
 
-        cursor.executemany("""
-        INSERT INTO parking_spots (area, spot_code, latitude, longitude, is_free)
-        VALUES (?, ?, ?, ?, ?)
-        """, spots)
+    # =========================
+    # USE UPDATED COORDINATES
+    # =========================
+    add_spots("Library", 4.96920, 114.89770)
+    add_spots("FOS",     4.975646, 114.895485)
+    add_spots("FIT",     4.96800, 114.89150)
+    add_spots("SDS",     4.976578, 114.893015, free_spot_codes=["SDS-02", "SDS-05", "SDS-08"])
+    add_spots("UBDSBE",  4.974128, 114.892298)
+    add_spots("SAS",     4.97010, 114.89500)
+    add_spots("ADMIN",   4.97080, 114.89680)
+
+    # Insert all spots
+    cursor.executemany("""
+    INSERT INTO parking_spots (area, spot_code, latitude, longitude, is_free)
+    VALUES (?, ?, ?, ?, ?)
+    """, spots)
 
     conn.commit()
     conn.close()
@@ -109,6 +117,7 @@ AREA_CENTERS = {
     "SAS": {"lat": 4.97013, "lng": 114.89508},
     "ADMIN": {"lat": 4.97083, "lng": 114.89688},
 }
+
 
 # =========================
 # HOME PAGE
