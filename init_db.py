@@ -45,30 +45,38 @@ CREATE TABLE parking_reports (
 """)
 
 # =========================
-# DUMMY SPOT DATA
-# ALL FULL
-# ONLY SDS HAS 3 FREE SPOTS
+# STORE ALL SPOTS HERE
 # =========================
-
 spots = []
 
-def add_spots(area, base_lat, base_lng, rows=2, cols=5, free_spot_codes=None):
+# =========================
+# FUNCTION TO ADD SPOTS
+# Real parking row layout
+# =========================
+def add_spots(area, base_lat, base_lng, free_spot_codes=None):
     if free_spot_codes is None:
         free_spot_codes = []
 
     count = 1
-    for r in range(rows):
-        for c in range(cols):
+
+    # 2 rows, 5 spots each
+    for row in range(2):
+        for col in range(5):
             spot_code = f"{area[:3].upper()}-{count:02d}"
-            lat = base_lat + (r * 0.00003)
-            lng = base_lng + (c * 0.00003)
+
+            # realistic row layout
+            lat = base_lat + (row * 0.00012)
+            lng = base_lng + (col * 0.00008)
 
             is_free = 1 if spot_code in free_spot_codes else 0
 
             spots.append((area, spot_code, lat, lng, is_free))
             count += 1
 
-# Approximate demo coordinates around UBD-style areas
+# =========================
+# DUMMY DATA
+# all full except SDS has 3 free
+# =========================
 add_spots("Library", 4.96920, 114.89770)
 add_spots("FOS",     4.97100, 114.89280)
 add_spots("FIT",     4.96800, 114.89150)
@@ -77,6 +85,9 @@ add_spots("UBDSBE",  4.96620, 114.89640)
 add_spots("SAS",     4.97010, 114.89500)
 add_spots("ADMIN",   4.97080, 114.89680)
 
+# =========================
+# INSERT INTO DATABASE
+# =========================
 cursor.executemany("""
 INSERT INTO parking_spots (area, spot_code, latitude, longitude, is_free)
 VALUES (?, ?, ?, ?, ?)
