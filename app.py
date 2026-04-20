@@ -81,6 +81,17 @@ def ensure_database():
 ensure_database()
 
 
+AREA_CENTERS = {
+    "Library": {"lat": 4.9693, "lng": 114.8979, "label": "Library Area"},
+    "FOS": {"lat": 4.9712, "lng": 114.8930, "label": "Faculty of Science Area"},
+    "FIT": {"lat": 4.9680, "lng": 114.8915, "label": "FIT Area"},
+    "SDS": {"lat": 4.9673, "lng": 114.8940, "label": "School of Digital Science Area"},
+    "UBDSBE": {"lat": 4.9662, "lng": 114.8964, "label": "UBDSBE Area"},
+    "SAS": {"lat": 4.9701, "lng": 114.8950, "label": "Student Affairs Area"},
+    "ADMIN": {"lat": 4.9708, "lng": 114.8968, "label": "Administration Area"},
+}
+
+
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -126,6 +137,12 @@ def parking():
     total_capacity = sum(zone["total_spots"] for zone in zones) if zones else 0
     last_updated = datetime.now().strftime("%d %b %Y, %I:%M %p")
 
+    best_zone = None
+    if zones:
+        best_zone = max(zones, key=lambda z: z["free_spots"])
+
+    area_center = AREA_CENTERS.get(destination, {"lat": 4.9685, "lng": 114.8955, "label": "UBD Campus Area"})
+
     return render_template(
         "parking.html",
         zones=zones,
@@ -133,7 +150,9 @@ def parking():
         destination=destination,
         total_free=total_free,
         total_capacity=total_capacity,
-        last_updated=last_updated
+        last_updated=last_updated,
+        best_zone=best_zone,
+        area_center=area_center
     )
 
 
