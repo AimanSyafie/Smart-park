@@ -525,4 +525,47 @@ body {
     .result-stats {
         flex-direction: column;
     }
+
+    .admin-card {
+    background: white;
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.05);
+}
+
+.admin-card h3 {
+    margin-bottom: 6px;
+    color: #13366f;
+}
+
+.admin-status {
+    margin: 10px 0;
+}
+
+.admin-metrics {
+    margin-bottom: 12px;
+    color: #475569;
+}
+
+.admin-form input {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.admin-form button {
+    width: 100%;
+    padding: 10px;
+    background: #0d3f8f;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.admin-form button:hover {
+    background: #092c66;
+}
 }
