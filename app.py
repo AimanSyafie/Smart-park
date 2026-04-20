@@ -22,8 +22,83 @@ def get_db_connection():
 
 
 # =========================
+# CREATE DATABASE IF MISSING
+# =========================
+def setup_database():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Create parking_spots table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS parking_spots (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        area TEXT NOT NULL,
+        spot_code TEXT NOT NULL,
+        latitude REAL NOT NULL,
+        longitude REAL NOT NULL,
+        is_free INTEGER NOT NULL
+    )
+    """)
+
+    # Create parking_reports table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS parking_reports (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        area TEXT NOT NULL,
+        spot_code TEXT NOT NULL,
+        new_status TEXT NOT NULL,
+        xml_data TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    # Check if parking_spots already has data
+    count = cursor.execute("SELECT COUNT(*) AS c FROM parking_spots").fetchone()["c"]
+
+    if count == 0:
+        spots = []
+
+        def add_spots(area, base_lat, base_lng, free_spot_codes=None):
+            if free_spot_codes is None:
+                free_spot_codes = []
+
+            count = 1
+            for row in range(2):      # 2 rows
+                for col in range(5):  # 5 spots per row
+                    spot_code = f"{area[:3].upper()}-{count:02d}"
+
+                    lat = base_lat + (row * 0.00012)
+                    lng = base_lng + (col * 0.00008)
+
+                    is_free = 1 if spot_code in free_spot_codes else 0
+
+                    spots.append((area, spot_code, lat, lng, is_free))
+                    count += 1
+
+        # All full except SDS has 3 free
+        add_spots("Library", 4.96920, 114.89770)
+        add_spots("FOS",     4.97100, 114.89280)
+        add_spots("FIT",     4.96800, 114.89150)
+        add_spots("SDS",     4.96730, 114.89400, free_spot_codes=["SDS-02", "SDS-05", "SDS-08"])
+        add_spots("UBDSBE",  4.96620, 114.89640)
+        add_spots("SAS",     4.97010, 114.89500)
+        add_spots("ADMIN",   4.97080, 114.89680)
+
+        cursor.executemany("""
+        INSERT INTO parking_spots (area, spot_code, latitude, longitude, is_free)
+        VALUES (?, ?, ?, ?, ?)
+        """, spots)
+
+    conn.commit()
+    conn.close()
+
+
+# Run setup at startup
+setup_database()
+
+
+# =========================
 # AREA CENTER POINTS
-# used to center the map
 # =========================
 AREA_CENTERS = {
     "Library": {"lat": 4.96925, "lng": 114.89778},
@@ -47,7 +122,6 @@ def home():
 
 # =========================
 # LOCATION PAGE
-# show one selected area
 # =========================
 @app.route("/location/<area>")
 def location(area):
@@ -107,35 +181,31 @@ def api_location(area):
 
 
 # =========================
-# USER REPORT / UPDATE SPOT
-# saves update in XML too
+# USER REPORT
 # =========================
 @app.route("/report", methods=["POST"])
 def report():
     area = request.form["area"]
     spot_code = request.form["spot_code"]
-    new_status = request.form["new_status"]  # Available or Full
+    new_status = request.form["new_status"]
 
     is_free = 1 if new_status == "Available" else 0
 
-    # Create XML structured text
+    # XML structured text
     root = ET.Element("report")
     ET.SubElement(root, "area").text = area
     ET.SubElement(root, "spot_code").text = spot_code
     ET.SubElement(root, "new_status").text = new_status
-
     xml_data = ET.tostring(root, encoding="unicode")
 
     conn = get_db_connection()
 
-    # Update spot
     conn.execute("""
         UPDATE parking_spots
         SET is_free = ?
         WHERE spot_code = ?
     """, (is_free, spot_code))
 
-    # Save XML report log
     conn.execute("""
         INSERT INTO parking_reports (area, spot_code, new_status, xml_data)
         VALUES (?, ?, ?, ?)
@@ -149,7 +219,6 @@ def report():
 
 # =========================
 # ADMIN PAGE
-# simple query view
 # =========================
 @app.route("/admin")
 def admin():
