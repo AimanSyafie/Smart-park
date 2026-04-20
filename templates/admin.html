@@ -1,28 +1,76 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - Smart Park UBD</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
-    <header class="topbar">
-        <h1>Smart Park UBD - Admin Dashboard</h1>
-        <p>Update parking availability for UBD campus areas.</p>
+
+<body class="admin-page">
+
+<div class="page-shell">
+
+    <!-- HEADER -->
+    <header class="simple-header">
+        <div>
+            <h1>Admin Dashboard</h1>
+            <p>Manage parking availability manually</p>
+        </div>
+        <div class="header-actions">
+            <a href="{{ url_for('home') }}" class="secondary-btn">Home</a>
+            <a href="{{ url_for('locations') }}" class="secondary-btn">Locations</a>
+        </div>
     </header>
 
-    {% for zone in zones %}
-    <div class="zone-card">
-        <h2>{{ zone['zone_name'] }}</h2>
-        <p><strong>Location:</strong> {{ zone['location'] }}</p>
-        <p><strong>Current Free Spaces:</strong> {{ zone['free_spots'] }} / {{ zone['total_spots'] }}</p>
-        <p><strong>Status:</strong> {{ zone['status'] }}</p>
+    <!-- GRID -->
+    <div class="admin-grid">
 
-        <form method="POST" action="{{ url_for('update_zone', zone_id=zone['id']) }}">
-            <label>Update Free Spaces:</label>
-            <input type="number" name="free_spots" min="0" max="{{ zone['total_spots'] }}" required>
-            <button type="submit">Update</button>
-        </form>
+        {% for zone in zones %}
+        <div class="admin-card">
+
+            <h3>{{ zone['zone_name'] }}</h3>
+            <p>{{ zone['location'] }}</p>
+
+            <div class="admin-status">
+                <span class="status-pill 
+                    {% if zone['status'] == 'Available' %}status-available
+                    {% elif zone['status'] == 'Limited' %}status-limited
+                    {% else %}status-full
+                    {% endif %}">
+                    {{ zone['status'] }}
+                </span>
+            </div>
+
+            <div class="admin-metrics">
+                <p>
+                    <strong>{{ zone['free_spots'] }}</strong> / {{ zone['total_spots'] }} free
+                </p>
+            </div>
+
+            <!-- UPDATE FORM -->
+            <form method="POST" action="{{ url_for('update_zone', zone_id=zone['id']) }}" class="admin-form">
+
+                <label>Update Free Spots</label>
+
+                <input 
+                    type="number" 
+                    name="free_spots" 
+                    min="0" 
+                    max="{{ zone['total_spots'] }}" 
+                    value="{{ zone['free_spots'] }}" 
+                    required
+                >
+
+                <button type="submit">Update</button>
+            </form>
+
+        </div>
+        {% endfor %}
+
     </div>
-    {% endfor %}
+
+</div>
+
 </body>
 </html>
