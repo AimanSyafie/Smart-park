@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parking Result - Smart Park UBD</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="result-page">
+    <div class="page-shell">
+        <header class="simple-header">
+            <div>
+                <h1>Parking Availability</h1>
+                <p>Selected area: <strong>{{ destination }}</strong></p>
+            </div>
+            <div class="header-actions">
+                <a href="{{ url_for('locations') }}" class="secondary-btn">Choose Another Area</a>
+                <a href="{{ url_for('home') }}" class="secondary-btn">Home</a>
+            </div>
+        </header>
+
+        {% if selected_area %}
+        <section class="result-layout">
+            <div class="result-main">
+                <div class="result-summary-card">
+                    <span class="hero-tag">Selected Destination</span>
+                    <h2>{{ selected_area['zone_name'] }}</h2>
+                    <p>{{ selected_area['location'] }}</p>
+
+                    <div class="result-stats">
+                        <div class="result-stat-box">
+                            <h3>{{ total_free }}</h3>
+                            <span>Free Spots</span>
+                        </div>
+                        <div class="result-stat-box">
+                            <h3>{{ total_capacity }}</h3>
+                            <span>Total Capacity</span>
+                        </div>
+                    </div>
+
+                    <p class="updated-note">Last updated: {{ last_updated }}</p>
+                </div>
+
+                <div class="result-zones">
+                    {% for zone in zones %}
+                    <div class="result-zone-card">
+                        <div class="result-zone-top">
+                            <h3>{{ zone['zone_name'] }}</h3>
+                            <span class="status-pill 
+                                {% if zone['status'] == 'Available' %}status-available
+                                {% elif zone['status'] == 'Limited' %}status-limited
+                                {% else %}status-full
+                                {% endif %}">
+                                {{ zone['status'] }}
+                            </span>
+                        </div>
+
+                        <p>{{ zone['location'] }}</p>
+
+                        <div class="parking-metric">
+                            <span class="big-number">{{ zone['free_spots'] }}</span>
+                            <span class="total-number">/ {{ zone['total_spots'] }}</span>
+                        </div>
+                        <p class="metric-label">Available Spaces</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <aside class="map-panel">
+                <div class="map-card">
+                    <h3>Parking Area Map</h3>
+                    <p>This area shows where the selected parking zone is located.</p>
+
+                    <div class="map-placeholder">
+                        <div class="map-box map-main">UBD Campus</div>
+                        <div class="map-box map-selected">{{ destination }}</div>
+                        <div class="map-path"></div>
+                    </div>
+
+                    <div class="map-caption">
+                        <strong>Selected Area:</strong> {{ selected_area['location'] }}
+                    </div>
+                </div>
+            </aside>
+        </section>
+        {% else %}
+        <div class="empty-state">
+            <h3>No area selected</h3>
+            <p>Please choose a location first.</p>
+            <a href="{{ url_for('locations') }}" class="primary-btn">Choose Location</a>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>
