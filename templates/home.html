@@ -15,7 +15,11 @@
     </section>
 
     <section class="area-section">
-        <h2>Choose a Location</h2>
+        <div class="section-header-row">
+            <h2>Choose a Location</h2>
+            <a href="{{ url_for('admin') }}" class="admin-link-btn">View Database & XML</a>
+        </div>
+
         <div class="area-grid">
             {% for area in areas %}
             <a href="{{ url_for('location', area=area) }}" class="area-card">
