@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Choose Location - Smart Park UBD</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="selection-page">
+    <div class="page-shell">
+        <header class="simple-header">
+            <div>
+                <h1>Choose Your Destination</h1>
+                <p>Select an area in UBD campus to check parking availability.</p>
+            </div>
+            <a href="{{ url_for('home') }}" class="secondary-btn">Back Home</a>
+        </header>
+
+        <section class="location-grid">
+            {% for item in destinations %}
+            <a href="{{ url_for('parking', destination=item['destination_tag']) }}" class="location-card">
+                <div class="location-icon">P</div>
+                <h3>{{ item['destination_tag'] }}</h3>
+                <p>{{ item['zone_name'] }}</p>
+                <span>{{ item['location'] }}</span>
+            </a>
+            {% endfor %}
+        </section>
+    </div>
+</body>
+</html>
