@@ -6,12 +6,25 @@ import psycopg2.extras
 
 app = Flask(__name__)
 
+# =========================
+# DATABASE CONFIG
+# =========================
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-def get_db_connection():
-    conn = psycopg2.connect(DATABASE_URL)
-    return conn
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL not set")
 
+def get_db_connection():
+    try:
+        return psycopg2.connect(DATABASE_URL)
+    except Exception as e:
+        print("Database connection error:", e)
+        raise
+
+
+# =========================
+# CREATE TABLES (ONLY)
+# =========================
 def setup_database():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -38,45 +51,18 @@ def setup_database():
     )
     """)
 
-    cursor.execute("SELECT COUNT(*) FROM parking_spots")
-    count = cursor.fetchone()[0]
-
-    if count == 0:
-        spots = []
-
-        def add_spots(area, base_lat, base_lng, free_spot_codes=None):
-            if free_spot_codes is None:
-                free_spot_codes = []
-
-            count = 1
-            for row in range(2):
-                for col in range(5):
-                    spot_code = f"{area[:3].upper()}-{count:02d}"
-                    lat = base_lat + (row * 0.00012)
-                    lng = base_lng + (col * 0.00008)
-                    is_free = 1 if spot_code in free_spot_codes else 0
-                    spots.append((area, spot_code, lat, lng, is_free))
-                    count += 1
-
-        add_spots("Library", 4.96920, 114.89770)
-        add_spots("FOS", 4.975646, 114.895485)
-        add_spots("FIT", 4.96800, 114.89150)
-        add_spots("SDS", 4.976578, 114.893015, free_spot_codes=["SDS-02", "SDS-05", "SDS-08"])
-        add_spots("UBDSBE", 4.974128, 114.892298)
-        add_spots("SAS", 4.97010, 114.89500)
-        add_spots("ADMIN", 4.97080, 114.89680)
-
-        psycopg2.extras.execute_batch(cursor, """
-            INSERT INTO parking_spots (area, spot_code, latitude, longitude, is_free)
-            VALUES (%s, %s, %s, %s, %s)
-        """, spots)
-
     conn.commit()
     cursor.close()
     conn.close()
 
+
+# Run once
 setup_database()
 
+
+# =========================
+# AREA MAP CENTERS
+# =========================
 AREA_CENTERS = {
     "Library": {"lat": 4.96925, "lng": 114.89778},
     "FOS": {"lat": 4.975646, "lng": 114.895485},
@@ -87,11 +73,19 @@ AREA_CENTERS = {
     "ADMIN": {"lat": 4.97083, "lng": 114.89688},
 }
 
+
+# =========================
+# HOME PAGE
+# =========================
 @app.route("/")
 def home():
     areas = ["Library", "FOS", "FIT", "SDS", "UBDSBE", "SAS", "ADMIN"]
     return render_template("home.html", areas=areas)
 
+
+# =========================
+# LOCATION PAGE
+# =========================
 @app.route("/location/<area>")
 def location(area):
     conn = get_db_connection()
@@ -118,6 +112,7 @@ def location(area):
     total_spots = len(spots)
     free_spots = sum(1 for s in spots if s["is_free"] == 1)
     full_spots = total_spots - free_spots
+
     center = AREA_CENTERS.get(area, {"lat": 4.9685, "lng": 114.8955})
 
     return render_template(
@@ -131,6 +126,10 @@ def location(area):
         recent_reports=recent_reports
     )
 
+
+# =========================
+# API (REAL-TIME DATA)
+# =========================
 @app.route("/api/location/<area>")
 def api_location(area):
     conn = get_db_connection()
@@ -158,6 +157,10 @@ def api_location(area):
         "spots": spots
     })
 
+
+# =========================
+# USER UPDATE (IMPORTANT)
+# =========================
 @app.route("/report", methods=["POST"])
 def report():
     area = request.form["area"]
@@ -166,6 +169,7 @@ def report():
 
     is_free = 1 if new_status == "Available" else 0
 
+    # XML structured data
     root = ET.Element("parking_report")
     ET.SubElement(root, "area").text = area
     ET.SubElement(root, "spot_code").text = spot_code
@@ -175,12 +179,14 @@ def report():
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # SAFER UPDATE (area included)
     cursor.execute("""
         UPDATE parking_spots
         SET is_free = %s
-        WHERE spot_code = %s
-    """, (is_free, spot_code))
+        WHERE spot_code = %s AND area = %s
+    """, (is_free, spot_code, area))
 
+    # INSERT REPORT
     cursor.execute("""
         INSERT INTO parking_reports (area, spot_code, new_status, xml_data)
         VALUES (%s, %s, %s, %s)
@@ -192,6 +198,10 @@ def report():
 
     return redirect(url_for("location", area=area))
 
+
+# =========================
+# ADMIN DASHBOARD
+# =========================
 @app.route("/admin")
 def admin():
     conn = get_db_connection()
@@ -214,5 +224,9 @@ def admin():
 
     return render_template("admin.html", reports=reports, spots=spots)
 
+
+# =========================
+# RUN APP
+# =========================
 if __name__ == "__main__":
     app.run(debug=True)
